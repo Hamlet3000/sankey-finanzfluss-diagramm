@@ -9,4 +9,4 @@ z.B. <br>
 1/1/2013,Fixkosten,,100.43,,ZWECK: AUSGABE
 
 oder<br>
-xlsx Datei von [Expense Manager]([url]https://play.google.com/store/apps/details?id=at.markushi.expensemanager&hl=de)
+xlsx Datei von [Expense Manager]([url]https://play.google.com/store/apps/details?id=at.markushi.expensemanager&hl=de) by Markus Hintersteiner
