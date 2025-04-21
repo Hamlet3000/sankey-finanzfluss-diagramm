@@ -18,7 +18,16 @@
       width: 100%;
       height: 680px;
     }
-    
+ 
+    /* Tooltip-Styling */
+    .google-visualization-tooltip {
+      background-color: #ffffff !important; /* Dunkler Hintergrund */
+      color: #1e1e1e !important;           /* Weißer Text */
+      font-size: 14px;                     /* Lesbare Schriftgröße */
+      border-radius: 5px;                  /* Abgerundete Ecken */
+      padding: 5px;                        /* Innenabstand */
+    }    
+
     h2, p, label {
       color: #ffffff; /* Weiße Schriftfarbe für Titel und Beschreibungen */
     }
@@ -88,18 +97,16 @@
 
     function drawSankeyForSelectedYear() {
       const selectedYear = parseInt(document.getElementById('yearSelect').value);
-      const data = [['Quelle', 'Ziel', 'Wert']];
+      const data = [['Quelle', 'Ziel', 'Wert', { role: 'tooltip', type: 'string' }]];
 
-      const einnahmeZwecke = {};  // z.B. Besoldung: 2000
-      const kategorieSummen = {}; // z.B. Fixkosten: 1000
-      const zweckStats = {};      // z.B. Fixkosten|Miete: { count: 3, sum: 600 }
+      const einnahmeZwecke = {};
+      const kategorieSummen = {};
+      const zweckStats = {};
       const ausgabeKategorien = ['Freizeit', 'Bargeld & Verpflegung', 'Fixkosten', 'Mobilität', 'Sondervermögen', 'Gesundheit'];
 
-      // 1. CSV parsen & Einkommen/Ausgaben sammeln
+      // CSV-Daten verarbeiten
       allRows.forEach(row => {
         const cols = row.split(',');
-        //if (cols.length < 5) return;
-
         const datum = new Date(cols[0].trim());
         const jahr = datum.getFullYear();
         if (jahr !== selectedYear) return;
@@ -109,12 +116,10 @@
         const ausgaben = parseFloat(cols[3]) || 0;
         const zweck = cols[4].trim();
 
-        // Einnahmenzwecke sammeln
         if (einkommen > 0) {
           einnahmeZwecke[zweck] = (einnahmeZwecke[zweck] || 0) + einkommen;
         }
 
-        // Ausgaben nach Kategorie + Zweck erfassen
         if (ausgaben > 0 && ausgabeKategorien.includes(kategorie)) {
           const key = `${kategorie}|${zweck}`;
           if (!zweckStats[key]) zweckStats[key] = { count: 0, sum: 0 };
@@ -125,30 +130,26 @@
         }
       });
 
-      // 2. Einnahmezwecke → Einkommen
-      let gesamtEinnahmen = 0;
+      // Einnahmezwecke → Einkommen
       for (const zweck in einnahmeZwecke) {
         const betrag = einnahmeZwecke[zweck];
-        data.push([zweck, 'Einkommen', betrag]);
-        gesamtEinnahmen += betrag;
+        const tooltip = `${zweck} -> Einkommen<br>Wert: ${betrag.toFixed(2)}€`;
+        data.push([zweck, 'Einkommen', betrag, tooltip]);
       }
 
-      // 3. Einnahmen → Kategorie (nach Verteilung)
+      // Einnahmen → Kategorie
       for (const kategorie in kategorieSummen) {
         const betrag = kategorieSummen[kategorie];
-        data.push(['Einkommen', kategorie, betrag]);
+        const tooltip = `Einkommen -> ${kategorie} <br> Wert: ${betrag.toFixed(2)}€`;
+        data.push(['Einkommen', kategorie, betrag, tooltip]);
       }
 
-      // 4. Kategorie → Zweck (inkl. Sonstige)
-      const groupedZwecke = {}; // z.B. Fixkosten: { Miete: 500, Sonstige Fixkosten: 200 }
-
+      // Kategorie → Zweck
+      const groupedZwecke = {};
       for (const key in zweckStats) {
         const [kategorie, zweck] = key.split('|');
         const { count, sum } = zweckStats[key];
-
         if (!groupedZwecke[kategorie]) groupedZwecke[kategorie] = {};
-
-        // wenn Zweck seltener als 3x vorkommt in sonstige sammeln
         if (count >= 3) {
           groupedZwecke[kategorie][zweck] = sum;
         } else {
@@ -160,15 +161,19 @@
       for (const kategorie in groupedZwecke) {
         const zwecke = groupedZwecke[kategorie];
         for (const zweck in zwecke) {
-          data.push([kategorie, zweck, zwecke[zweck]]);
+          const betrag = zwecke[zweck];
+          const tooltip = `${kategorie} -> ${zweck} <br> Wert: ${betrag.toFixed(2)}€`;
+          data.push([kategorie, zweck, betrag, tooltip]);
         }
       }
 
-      // 5. Zeichnen
+      // Diagramm zeichnen
       google.charts.setOnLoadCallback(() => {
         const chartData = google.visualization.arrayToDataTable(data);
+
         const chart = new google.visualization.Sankey(document.getElementById('sankey_chart'));
         chart.draw(chartData, {
+          tooltip: { isHtml: true }, // Aktiviert HTML-Tooltips
           sankey: {
             node: { label: { fontSize: 14, color: '#ffffff' }, nodePadding: 20 },
             link: { colorMode: 'gradient', opacity: 0.8 }
