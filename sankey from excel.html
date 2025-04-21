@@ -81,7 +81,7 @@
 
       reader.onload = function (e) {
         const content = e.target.result;
-        allRows = content.trim().split('\n').slice(1); // ohne Header
+        allRows = content.trim().split('\n');
 
         // Dynamische Erkennung der Ausgabekategorien
         const kategorienSet = new Set();
