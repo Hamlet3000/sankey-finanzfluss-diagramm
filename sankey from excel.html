@@ -150,20 +150,32 @@
         const [kategorie, zweck] = key.split('|');
         const { count, sum } = zweckStats[key];
         if (!groupedZwecke[kategorie]) groupedZwecke[kategorie] = {};
-        if (count >= 3) {
-          groupedZwecke[kategorie][zweck] = sum;
+        if (count >= 6) {
+          groupedZwecke[kategorie][zweck] = { sum, details: [zweck] };
         } else {
           const sonstige = `Sonstige ${kategorie}`;
-          groupedZwecke[kategorie][sonstige] = (groupedZwecke[kategorie][sonstige] || 0) + sum;
+          if (!groupedZwecke[kategorie][sonstige]) {
+            groupedZwecke[kategorie][sonstige] = { sum: 0, details: [] };
+          }
+          groupedZwecke[kategorie][sonstige].sum += sum;
+          groupedZwecke[kategorie][sonstige].details.push({ name: zweck, value: sum });
         }
       }
 
       for (const kategorie in groupedZwecke) {
         const zwecke = groupedZwecke[kategorie];
         for (const zweck in zwecke) {
-          const betrag = zwecke[zweck];
-          const tooltip = `${kategorie} -> ${zweck} <br> Wert: ${betrag.toFixed(2)}€`;
-          data.push([kategorie, zweck, betrag, tooltip]);
+          const { sum, details } = zwecke[zweck];
+          const detailsText = details
+            .filter(d => d.name && typeof d.value === 'number')
+            .map(d => `- ${d.name}: ${d.value.toFixed(2)}€`)
+            .join('<br>');
+
+          const tooltip = detailsText 
+            ? `${kategorie} -> ${zweck} <br> Wert: ${sum.toFixed(2)}€ <br><br>Positionen:<br>${detailsText}` 
+            : `${kategorie} -> ${zweck} <br> Wert: ${sum.toFixed(2)}€`;
+
+          data.push([kategorie, zweck, sum, tooltip]);
         }
       }
 
