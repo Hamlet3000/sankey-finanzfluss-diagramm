@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sankey Finanzfluss Diagramm</title>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    #sankey_chart {
+      margin-top: 30px;
+      width: 100%;
+      height: 600px;
+    }
+    select {
+      padding: 5px;
+      font-size: 1rem;
+      margin-top: 10px;
+    }
+  </style>
+
+</head>
+
+<body>
+  <h2>Sankey Finanzfluss Diagramm</h2>
+  <p>Datei-Format: <code>Datum, Kategorie, Einkommen, Ausgaben, Zweck</code></p>
+  <input type="file" accept=".csv" onchange="handleFileSelect(event)" />
+  <div>
+    <label for="yearSelect">Jahr wählen:</label>
+    <select id="yearSelect" onchange="drawSankeyForSelectedYear()" disabled>
+      <option>-- Lade Daten --</option>
+    </select>
+  </div>
+  <div id="sankey_chart"></div>
+
+  <script>
+    google.charts.load('current', { packages: ['sankey'] });
+
+    let allRows = [];
+    const ausgabeKategorien = ['Freizeit', 'Bargeld & Verpflegung', 'Fixkosten', 'Mobilität', 'Sondervermögen', 'Gesundheit'];
+
+    function handleFileSelect(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const content = e.target.result;
+        allRows = content.trim().split('\n').slice(1); // ohne Header
+
+        const years = Array.from(new Set(
+          allRows.map(row => {
+            const datum = row.split(',')[0].trim();
+            return new Date(datum).getFullYear();
+          })
+        )).sort();
+
+        const yearSelect = document.getElementById('yearSelect');
+        yearSelect.innerHTML = '';
+        years.forEach(year => {
+          const option = document.createElement('option');
+          option.value = year;
+          option.textContent = year;
+          yearSelect.appendChild(option);
+        });
+
+        yearSelect.disabled = false;
+        drawSankeyForSelectedYear();
+      };
+
+      reader.readAsText(file);
+    }
+
+    function drawSankeyForSelectedYear() {
+      const selectedYear = parseInt(document.getElementById('yearSelect').value);
+      const data = [['Quelle', 'Ziel', 'Wert']];
+
+      const einnahmeZwecke = {};  // z.B. Besoldung: 2000
+      const kategorieSummen = {}; // z.B. Fixkosten: 1000
+      const zweckStats = {};      // z.B. Fixkosten|Miete: { count: 3, sum: 600 }
+      const ausgabeKategorien = ['Freizeit', 'Bargeld & Verpflegung', 'Fixkosten', 'Mobilität', 'Sondervermögen', 'Gesundheit'];
+
+      // 1. CSV parsen & Einkommen/Ausgaben sammeln
+      allRows.forEach(row => {
+        const cols = row.split(',');
+        //if (cols.length < 5) return;
+
+        const datum = new Date(cols[0].trim());
+        const jahr = datum.getFullYear();
+        if (jahr !== selectedYear) return;
+
+        const kategorie = cols[1].trim();
+        const einkommen = parseFloat(cols[2]) || 0;
+        const ausgaben = parseFloat(cols[3]) || 0;
+        const zweck = cols[4].trim();
+
+        // Einnahmenzwecke sammeln
+        if (einkommen > 0) {
+          einnahmeZwecke[zweck] = (einnahmeZwecke[zweck] || 0) + einkommen;
+        }
+
+        // Ausgaben nach Kategorie + Zweck erfassen
+        if (ausgaben > 0 && ausgabeKategorien.includes(kategorie)) {
+          const key = `${kategorie}|${zweck}`;
+          if (!zweckStats[key]) zweckStats[key] = { count: 0, sum: 0 };
+          zweckStats[key].count++;
+          zweckStats[key].sum += ausgaben;
+
+          kategorieSummen[kategorie] = (kategorieSummen[kategorie] || 0) + ausgaben;
+        }
+      });
+
+      // 2. Einnahmezwecke → Einkommen
+      let gesamtEinnahmen = 0;
+      for (const zweck in einnahmeZwecke) {
+        const betrag = einnahmeZwecke[zweck];
+        data.push([zweck, 'Einkommen', betrag]);
+        gesamtEinnahmen += betrag;
+      }
+
+      // 3. Einnahmen → Kategorie (nach Verteilung)
+      for (const kategorie in kategorieSummen) {
+        const betrag = kategorieSummen[kategorie];
+        data.push(['Einkommen', kategorie, betrag]);
+      }
+
+      // 4. Kategorie → Zweck (inkl. Sonstige)
+      const groupedZwecke = {}; // z.B. Fixkosten: { Miete: 500, Sonstige Fixkosten: 200 }
+
+      for (const key in zweckStats) {
+        const [kategorie, zweck] = key.split('|');
+        const { count, sum } = zweckStats[key];
+
+        if (!groupedZwecke[kategorie]) groupedZwecke[kategorie] = {};
+
+        // wenn Zweck seltener als 3x vorkommt in sonstige sammeln
+        if (count >= 3) {
+          groupedZwecke[kategorie][zweck] = sum;
+        } else {
+          const sonstige = `Sonstige ${kategorie}`;
+          groupedZwecke[kategorie][sonstige] = (groupedZwecke[kategorie][sonstige] || 0) + sum;
+        }
+      }
+
+      for (const kategorie in groupedZwecke) {
+        const zwecke = groupedZwecke[kategorie];
+        for (const zweck in zwecke) {
+          data.push([kategorie, zweck, zwecke[zweck]]);
+        }
+      }
+
+      // 5. Zeichnen
+      google.charts.setOnLoadCallback(() => {
+        const chartData = google.visualization.arrayToDataTable(data);
+        const chart = new google.visualization.Sankey(document.getElementById('sankey_chart'));
+        chart.draw(chartData, {
+          sankey: {
+            node: { label: { fontSize: 14 } },
+            link: { colorMode: 'source' }
+          }
+        });
+      });
+    }
+
+  </script>
+</body>
+</html>
