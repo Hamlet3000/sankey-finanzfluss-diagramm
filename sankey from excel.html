@@ -4,51 +4,46 @@
   <meta charset="UTF-8" />
   <title>Sankey Finanzfluss Diagramm</title>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     body {
-      background-color: #121212; /* Dunkler Hintergrund */
-      color: #ffffff; /* Weiße Schriftfarbe für Kontrast */
+      background-color: #121212;
+      color: #ffffff;
       font-family: sans-serif;
     }
     #sankey_chart {
-      background-color: #1e1e1e; /* Dunkler Hintergrund für das Diagramm */
-      border: 1px solid #444; /* Optionale Umrandung */
+      background-color: #1e1e1e;
+      border: 1px solid #444;
       margin-top: 20px;
       width: 100%;
       height: 680px;
     }
- 
-    /* Tooltip-Styling */
     .google-visualization-tooltip {
-      background-color: #ffffff !important; /* Dunkler Hintergrund */
-      color: #1e1e1e !important;           /* Weißer Text */
-      font-size: 14px;                     /* Lesbare Schriftgröße */
-      border-radius: 5px;                  /* Abgerundete Ecken */
-      padding: 5px;                        /* Innenabstand */
-    }    
-
-    h2, p, label {
-      color: #ffffff; /* Weiße Schriftfarbe für Titel und Beschreibungen */
-    }
-
-    select {
-      background-color: #1e1e1e; /* Dunkler Hintergrund für Dropdown */
-      color: #ffffff; /* Weiße Schriftfarbe */
-      border: 1px solid #444; /* Umrandung für Dropdown */
+      background-color: #ffffff !important;
+      color: #1e1e1e !important;
+      font-size: 14px;
+      border-radius: 5px;
       padding: 5px;
+    }
+    h2, p, label {
+      color: #ffffff;
+    }
+    select {
+      background-color: #1e1e1e;
+      color: #ffffff;
+      border: 1px solid #444;
       padding: 5px;
       font-size: 1rem;
       margin-top: 10px;
     }
   </style>
-
 </head>
 
 <body>
   <h2>Sankey Finanzfluss Diagramm</h2>
   <p>Datei-Format: <code>Datum, Kategorie, Einkommen, Ausgaben, Zweck</code></p>
-  <input type="file" accept=".csv" onchange="handleFileSelect(event)" />
+  <input type="file" accept=".csv,.xlsx" onchange="handleFileSelect(event)" />
   <div>
     <label for="yearSelect">Jahr wählen:</label>
     <select id="yearSelect" onchange="drawSankeyForSelectedYear()" disabled>
@@ -63,75 +58,85 @@
     let allRows = [];
     let ausgabeKategorien = [];
 
-    const kategorienSet = new Set();
-    allRows.forEach(row => {
-      const cols = row.split(',');
-      const kategorie = cols[1].trim();
-      const ausgaben = parseFloat(cols[3]) || 0;
-      if (ausgaben > 0) kategorienSet.add(kategorie);
-    });
-    ausgabeKategorien = Array.from(kategorienSet);
-
-
     function handleFileSelect(evt) {
       const file = evt.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
+      const isExcel = file.name.endsWith('.xlsx');
 
-      reader.onload = function (e) {
-        const content = e.target.result;
-        allRows = content.trim().split('\n');
+      if (isExcel) {
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const csv = XLSX.utils.sheet_to_csv(sheet);
+          processCSV(csv);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.onload = function (e) {
+          processCSV(e.target.result);
+        };
+        reader.readAsText(file);
+      }
+    }
 
-        // Dynamische Erkennung der Ausgabekategorien
-        const kategorienSet = new Set();
-        allRows.forEach(row => {
-          const cols = row.split(',');
-          if (cols.length < 5) return; // Schutz gegen fehlerhafte Zeilen
+    function processCSV(csv) {
+      const lines = csv.trim().split('\n');
+      const firstLine = lines[0].toLowerCase();
+      const hasHeader = firstLine.includes('datum') && firstLine.includes('kategorie');
+      allRows = hasHeader ? lines.slice(1) : lines;
 
-          const ausgaben = parseFloat(cols[3]) || 0;
-          if (ausgaben > 0) {
-            const kategorie = cols[1].trim();
-            if (kategorie) kategorienSet.add(kategorie);
-          }
-        });
-        ausgabeKategorien = Array.from(kategorienSet);
+      // Dynamische Erkennung von Kategorien mit Ausgaben
+      const kategorienSet = new Set();
+      allRows.forEach(row => {
+        const cols = row.split(',');
+        if (cols.length < 5) return;
+        const ausgaben = parseFloat(cols[3]) || 0;
+        if (ausgaben > 0) {
+          const kategorie = cols[1].trim();
+          if (kategorie) kategorienSet.add(kategorie);
+        }
+      });
+      ausgabeKategorien = Array.from(kategorienSet);
 
-        // Weiter mit Jahr-Auswahl
-        const years = Array.from(new Set(
-          allRows.map(row => {
-            const datum = row.split(',')[0].trim();
-            return new Date(datum).getFullYear();
-          })
-        )).sort();
+      // Jahre extrahieren
+      const years = Array.from(new Set(
+        allRows.map(row => {
+          const datum = row.split(',')[0].trim();
+          return new Date(datum).getFullYear();
+        })
+      )).sort();
 
-        const yearSelect = document.getElementById('yearSelect');
-        yearSelect.innerHTML = '';
-        years.forEach(year => {
-          const option = document.createElement('option');
-          option.value = year;
-          option.textContent = year;
-          yearSelect.appendChild(option);
-        });
+      const yearSelect = document.getElementById('yearSelect');
+      yearSelect.innerHTML = '';
+      years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+      });
 
-        yearSelect.disabled = false;
-        drawSankeyForSelectedYear();
-      };
-
-      reader.readAsText(file);
+      yearSelect.disabled = false;
+      drawSankeyForSelectedYear();
     }
 
     function drawSankeyForSelectedYear() {
       const selectedYear = parseInt(document.getElementById('yearSelect').value);
-      const data = [['Quelle', 'Ziel', 'Wert', { role: 'tooltip', type: 'string' }]];
+      if (!selectedYear || ausgabeKategorien.length === 0) {
+        console.warn("Keine gültigen Daten vorhanden.");
+        return;
+      }
 
+      const data = [['Quelle', 'Ziel', 'Wert', { role: 'tooltip', type: 'string' }]];
       const einnahmeZwecke = {};
       const kategorieSummen = {};
       const zweckStats = {};
 
-      // CSV-Daten verarbeiten
       allRows.forEach(row => {
         const cols = row.split(',');
+        if (cols.length < 5) return;
         const datum = new Date(cols[0].trim());
         const jahr = datum.getFullYear();
         if (jahr !== selectedYear) return;
@@ -155,21 +160,18 @@
         }
       });
 
-      // Einnahmezwecke → Einkommen
       for (const zweck in einnahmeZwecke) {
         const betrag = einnahmeZwecke[zweck];
         const tooltip = `${zweck} -> Einkommen<br>Wert: ${betrag.toFixed(2)}€`;
         data.push([zweck, 'Einkommen', betrag, tooltip]);
       }
 
-      // Einnahmen → Kategorie
       for (const kategorie in kategorieSummen) {
         const betrag = kategorieSummen[kategorie];
-        const tooltip = `Einkommen -> ${kategorie} <br> Wert: ${betrag.toFixed(2)}€`;
+        const tooltip = `Einkommen -> ${kategorie}<br>Wert: ${betrag.toFixed(2)}€`;
         data.push(['Einkommen', kategorie, betrag, tooltip]);
       }
 
-      // Kategorie → Zweck
       const groupedZwecke = {};
       for (const key in zweckStats) {
         const [kategorie, zweck] = key.split('|');
@@ -191,26 +193,26 @@
         const zwecke = groupedZwecke[kategorie];
         for (const zweck in zwecke) {
           const { sum, details } = zwecke[zweck];
-          const detailsText = details
-            .filter(d => d.name && typeof d.value === 'number')
-            .map(d => `- ${d.name}: ${d.value.toFixed(2)}€`)
-            .join('<br>');
+          const detailsText = Array.isArray(details)
+            ? details
+              .filter(d => d.name && typeof d.value === 'number')
+              .map(d => `- ${d.name}: ${d.value.toFixed(2)}€`)
+              .join('<br>')
+            : '';
 
-          const tooltip = detailsText 
-            ? `${kategorie} -> ${zweck} <br> Wert: ${sum.toFixed(2)}€ <br><br>Positionen:<br>${detailsText}` 
+          const tooltip = detailsText
+            ? `${kategorie} -> ${zweck} <br> Wert: ${sum.toFixed(2)}€ <br><br>Positionen:<br>${detailsText}`
             : `${kategorie} -> ${zweck} <br> Wert: ${sum.toFixed(2)}€`;
 
           data.push([kategorie, zweck, sum, tooltip]);
         }
       }
 
-      // Diagramm zeichnen
       google.charts.setOnLoadCallback(() => {
         const chartData = google.visualization.arrayToDataTable(data);
-
         const chart = new google.visualization.Sankey(document.getElementById('sankey_chart'));
         chart.draw(chartData, {
-          tooltip: { isHtml: true }, // Aktiviert HTML-Tooltips
+          tooltip: { isHtml: true },
           sankey: {
             node: { label: { fontSize: 14, color: '#ffffff' }, nodePadding: 20 },
             link: { colorMode: 'gradient', opacity: 0.8 }
@@ -218,7 +220,6 @@
         });
       });
     }
-
   </script>
 </body>
 </html>
