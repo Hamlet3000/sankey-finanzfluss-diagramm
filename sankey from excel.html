@@ -61,17 +61,43 @@
     google.charts.load('current', { packages: ['sankey'] });
 
     let allRows = [];
-    const ausgabeKategorien = ['Freizeit', 'Bargeld & Verpflegung', 'Fixkosten', 'Mobilität', 'Sondervermögen', 'Gesundheit'];
+    let ausgabeKategorien = [];
+
+    const kategorienSet = new Set();
+    allRows.forEach(row => {
+      const cols = row.split(',');
+      const kategorie = cols[1].trim();
+      const ausgaben = parseFloat(cols[3]) || 0;
+      if (ausgaben > 0) kategorienSet.add(kategorie);
+    });
+    ausgabeKategorien = Array.from(kategorienSet);
+
 
     function handleFileSelect(evt) {
       const file = evt.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
+
       reader.onload = function (e) {
         const content = e.target.result;
         allRows = content.trim().split('\n').slice(1); // ohne Header
 
+        // Dynamische Erkennung der Ausgabekategorien
+        const kategorienSet = new Set();
+        allRows.forEach(row => {
+          const cols = row.split(',');
+          if (cols.length < 5) return; // Schutz gegen fehlerhafte Zeilen
+
+          const ausgaben = parseFloat(cols[3]) || 0;
+          if (ausgaben > 0) {
+            const kategorie = cols[1].trim();
+            if (kategorie) kategorienSet.add(kategorie);
+          }
+        });
+        ausgabeKategorien = Array.from(kategorienSet);
+
+        // Weiter mit Jahr-Auswahl
         const years = Array.from(new Set(
           allRows.map(row => {
             const datum = row.split(',')[0].trim();
@@ -102,7 +128,6 @@
       const einnahmeZwecke = {};
       const kategorieSummen = {};
       const zweckStats = {};
-      const ausgabeKategorien = ['Freizeit', 'Bargeld & Verpflegung', 'Fixkosten', 'Mobilität', 'Sondervermögen', 'Gesundheit'];
 
       // CSV-Daten verarbeiten
       allRows.forEach(row => {
