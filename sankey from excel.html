@@ -52,6 +52,11 @@
   </div>
 
   <div>
+    <label for="monthFilter">Monate wählen:</label>
+    <div id="monthFilter" style="display: inline-flex; flex-wrap: wrap; align-items: center; margin-top: 10px;"></div>
+  </div>
+  <p>
+  <div>
     <label for="groupThreshold">Mindestanzahl für eigene Kategorie:</label>
     <input
       type="number"
@@ -96,6 +101,48 @@
       }
     }
 
+    function createMonthCheckboxes() {
+      const monthNames = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'
+      ];
+
+      const monthFilter = document.getElementById('monthFilter');
+      monthFilter.innerHTML = ''; // Vorherige Inhalte entfernen
+
+      monthNames.forEach((month, index) => {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `month${index + 1}`;
+        checkbox.value = index + 1; // Monat von 1 bis 12
+        checkbox.checked = true;
+        checkbox.onchange = drawSankeyForSelectedYear; // Diagramm aktualisieren
+
+        const label = document.createElement('label');
+        label.htmlFor = checkbox.id;
+        label.textContent = month;
+        label.style.marginRight = '5px';
+
+        const container = document.createElement('div');
+        container.style.marginRight = '5px';
+        container.appendChild(checkbox);
+        container.appendChild(label);
+
+        monthFilter.appendChild(container);
+      });
+    }
+
+    function getSelectedMonths() {
+      const checkboxes = document.querySelectorAll('#monthFilter input[type="checkbox"]');
+      const selectedMonths = [];
+      checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+          selectedMonths.push(parseInt(checkbox.value));
+        }
+      });
+      return selectedMonths;
+    }
+
     function processCSV(csv) {
       const lines = csv.trim().split('\n');
       const firstLine = lines[0].toLowerCase();
@@ -133,11 +180,13 @@
       });
 
       yearSelect.disabled = false;
+      createMonthCheckboxes();
       drawSankeyForSelectedYear();
     }
 
     function drawSankeyForSelectedYear() {
       const selectedYear = parseInt(document.getElementById('yearSelect').value);
+      const selectedMonths = getSelectedMonths();
       if (!selectedYear || ausgabeKategorien.length === 0) {
         console.warn("Keine gültigen Daten vorhanden.");
         return;
@@ -153,7 +202,11 @@
         if (cols.length < 5) return;
         const datum = new Date(cols[0].trim());
         const jahr = datum.getFullYear();
-        if (jahr !== selectedYear) return;
+        const monat = datum.getMonth() + 1; // Monat von 0-11 zu 1-12
+
+        if (jahr !== selectedYear || (selectedMonths.length > 0 && !selectedMonths.includes(monat))) {
+          return;
+        }
 
         const kategorie = cols[1].trim();
         const einkommen = parseFloat(cols[2]) || 0;
