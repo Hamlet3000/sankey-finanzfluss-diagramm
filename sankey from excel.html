@@ -246,9 +246,12 @@
         data.push([zweck, 'Einkommen', betrag, tooltip]);
       }
 
+      const gesamtEinkommen = Object.values(einnahmeZwecke).reduce((a, b) => a + b, 0);
+
       for (const kategorie in kategorieSummen) {
         const betrag = kategorieSummen[kategorie];
-        const tooltip = `Einkommen -> ${kategorie}<br>Wert: ${betrag.toFixed(2)}€`;
+        const prozent = gesamtEinkommen > 0 ? (betrag / gesamtEinkommen) * 100 : 0;
+        const tooltip = `Einkommen -> ${kategorie}<br>Wert: ${betrag.toFixed(2)}€<br>${prozent.toFixed(1)}% des Einkommens`;
         data.push(['Einkommen', kategorie, betrag, tooltip]);
       }
 
@@ -282,9 +285,10 @@
               .join('<br>')
             : '';
 
+          const prozent = gesamtEinkommen > 0 ? (sum / gesamtEinkommen) * 100 : 0;
           const tooltip = detailsText
-            ? `${kategorie} -> ${zweck} <br> Wert: ${sum.toFixed(2)}€ <br><br>Positionen:<br>${detailsText}`
-            : `${kategorie} -> ${zweck} <br> Wert: ${sum.toFixed(2)}€`;
+            ? `${kategorie} -> ${zweck} <br>Wert: ${sum.toFixed(2)}€<br>${prozent.toFixed(1)}% des Einkommens<br><br>Positionen:<br>${detailsText}`
+            : `${kategorie} -> ${zweck} <br>Wert: ${sum.toFixed(2)}€<br>${prozent.toFixed(1)}% des Einkommens`;
 
           data.push([kategorie, zweck, sum, tooltip]);
         }
