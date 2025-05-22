@@ -10,3 +10,8 @@ z.B. <br>
 
 oder<br>
 xlsx Datei von [Expense Manager]([url]https://play.google.com/store/apps/details?id=at.markushi.expensemanager&hl=de) by Markus Hintersteiner
+
+<br>
+<br>
+
+![sankey](https://github.com/user-attachments/assets/4a43d183-fe8f-4986-8f14-7106deb341ac)
