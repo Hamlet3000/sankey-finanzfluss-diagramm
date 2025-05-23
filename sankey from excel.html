@@ -240,10 +240,51 @@
         }
       });
 
+      const threshold = parseInt(document.getElementById('groupThreshold').value) || 6;
+      const groupedEinnahmen = {};
+      const zweckCounts = {};
+
+      // Zähle Vorkommen der Einkommen-Zwecke
+      allRows.forEach(row => {
+        const cols = row.split(',');
+        if (cols.length < 5) return;
+        const datum = new Date(cols[0].trim());
+        const jahr = datum.getFullYear();
+        const monat = datum.getMonth() + 1;
+        if (jahr !== selectedYear || !selectedMonths.includes(monat)) return;
+
+        const einkommen = parseFloat(cols[2]) || 0;
+        const zweck = sanitizeZweck(cols[4].trim());
+        if (einkommen > 0) {
+          zweckCounts[zweck] = (zweckCounts[zweck] || 0) + 1;
+        }
+      });
+
+      // Gruppiere Einkommen basierend auf dem Threshold
       for (const zweck in einnahmeZwecke) {
+        const count = zweckCounts[zweck] || 0;
         const betrag = einnahmeZwecke[zweck];
-        const tooltip = `${zweck} -> Einkommen<br>Wert: ${betrag.toFixed(2)}€`;
-        data.push([zweck, 'Einkommen', betrag, tooltip]);
+
+        if (count >= threshold) {
+          const tooltip = `${zweck} -> Einkommen<br>Wert: ${betrag.toFixed(2)}€`;
+          data.push([zweck, 'Einkommen', betrag, tooltip]);
+        } else {
+          if (!groupedEinnahmen['Sonstige Einkommen']) {
+            groupedEinnahmen['Sonstige Einkommen'] = { sum: 0, details: [] };
+          }
+          groupedEinnahmen['Sonstige Einkommen'].sum += betrag;
+          groupedEinnahmen['Sonstige Einkommen'].details.push({ name: zweck, value: betrag });
+        }
+      }
+
+      // Füge "Sonstige Einkommen" hinzu
+      if (groupedEinnahmen['Sonstige Einkommen']) {
+        const sum = groupedEinnahmen['Sonstige Einkommen'].sum;
+        const details = groupedEinnahmen['Sonstige Einkommen'].details
+          .map(d => `- ${d.name}: ${d.value.toFixed(2)}€`)
+          .join('<br>');
+        const tooltip = `Sonstige Einkommen -> Einkommen<br>Wert: ${sum.toFixed(2)}€<br><br>Positionen:<br>${details}`;
+        data.push(['Sonstige Einkommen', 'Einkommen', sum, tooltip]);
       }
 
       const gesamtEinkommen = Object.values(einnahmeZwecke).reduce((a, b) => a + b, 0);
