@@ -14,4 +14,4 @@ xlsx Datei von [Expense Manager](https://play.google.com/store/apps/details?id=a
 <br>
 <br>
 
-![sankey](https://github.com/user-attachments/assets/4a43d183-fe8f-4986-8f14-7106deb341ac)
+![sankey](https://github.com/user-attachments/assets/c8da7b9c-393c-42e7-8d50-21b1056e390f)
