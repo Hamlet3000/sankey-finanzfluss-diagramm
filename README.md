@@ -1,7 +1,7 @@
 # sankey-finanzfluss-diagramm
-creats sankey diagramm from csv file
+Erzeugt Sankey-Diagramm aus csv/xlsx Datei
 
-Die csv datei muss wie folgt aufgebaut sein:
+Die csv Datei muss wie folgt aufgebaut sein:
 Datum,Kategorie,Einkommen,Ausgaben,Zweck
 
 z.B. <br>
