@@ -112,6 +112,24 @@
         checkbox.value = index + 1; // Monat von 1 bis 12
         checkbox.checked = true;
         checkbox.onchange = drawSankeyForSelectedYear; // Diagramm aktualisieren
+        
+        // Doppelklick-Funktion
+        checkbox.addEventListener('dblclick', function(e) {
+          e.preventDefault();
+          const allCheckboxes = document.querySelectorAll('#monthFilter input[type="checkbox"]');
+          
+          if (this.checked) {
+            // Doppelklick auf selektierte Checkbox: Alle anderen ausschalten
+            allCheckboxes.forEach(cb => {
+              if (cb !== this) cb.checked = false;
+            });
+          } else {
+            // Doppelklick auf nicht-selektierte Checkbox: Alle einschalten
+            allCheckboxes.forEach(cb => cb.checked = true);
+          }
+          
+          drawSankeyForSelectedYear();
+        });
 
         const label = document.createElement('label');
         label.htmlFor = checkbox.id;
